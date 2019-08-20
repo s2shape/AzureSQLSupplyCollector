@@ -15,22 +15,23 @@ namespace AzureSqlSupplyCollector
             return (new[] { "Azure SQL" }).ToList();
         }
 
-        public string BuildConnectionString(string user, string password, string database, string host,
-            int port = 5439)
+        public string BuildConnectionString(string user, string password, string database, string host)
         {
-            /*var builder = new NpgsqlConnectionStringBuilder();
-            builder.Host = host;
-            builder.Port = port;
-            builder.Database = database;
-            builder.Username = user;
+            var builder = new SqlConnectionStringBuilder();
+            builder.DataSource = host;
+            builder.InitialCatalog = database;
+            builder.UserID = user;
             builder.Password = password;
-            builder.ServerCompatibilityMode = ServerCompatibilityMode.Redshift;
-            return builder.ConnectionString;*/
+            return builder.ConnectionString;
         }
 
         private DataType ConvertDataType(string dbDataType)
         {
-            if ("integer".Equals(dbDataType))
+            if ("bigint".Equals(dbDataType))
+            {
+                return DataType.Decimal;
+            }
+            else if ("int".Equals(dbDataType))
             {
                 return DataType.Long;
             }
@@ -38,15 +39,35 @@ namespace AzureSqlSupplyCollector
             {
                 return DataType.Short;
             }
-            else if ("boolean".Equals(dbDataType))
+            else if ("bit".Equals(dbDataType))
             {
                 return DataType.Boolean;
             }
-            else if ("character".Equals(dbDataType))
+            else if ("decimal".Equals(dbDataType))
+            {
+                return DataType.Decimal;
+            }
+            else if ("numeric".Equals(dbDataType))
+            {
+                return DataType.Decimal;
+            }
+            else if ("tinyint".Equals(dbDataType))
+            {
+                return DataType.Byte;
+            }
+            else if ("money".Equals(dbDataType))
+            {
+                return DataType.Double;
+            }
+            else if ("smallmoney".Equals(dbDataType))
+            {
+                return DataType.Double;
+            }
+            else if ("char".Equals(dbDataType))
             {
                 return DataType.Char;
             }
-            else if ("character varying".Equals(dbDataType))
+            else if ("varchar".Equals(dbDataType))
             {
                 return DataType.String;
             }
@@ -54,7 +75,19 @@ namespace AzureSqlSupplyCollector
             {
                 return DataType.String;
             }
-            else if ("double precision".Equals(dbDataType))
+            else if ("nchar".Equals(dbDataType))
+            {
+                return DataType.Char;
+            }
+            else if ("nvarchar".Equals(dbDataType))
+            {
+                return DataType.String;
+            }
+            else if ("ntext".Equals(dbDataType))
+            {
+                return DataType.String;
+            }
+            else if ("float".Equals(dbDataType))
             {
                 return DataType.Double;
             }
@@ -62,23 +95,27 @@ namespace AzureSqlSupplyCollector
             {
                 return DataType.Double;
             }
-            else if ("numeric".Equals(dbDataType))
-            {
-                return DataType.Decimal;
-            }
             else if ("date".Equals(dbDataType))
             {
                 return DataType.DateTime;
             }
-            else if ("timestamp without time zone".Equals(dbDataType))
+            else if ("datetime2".Equals(dbDataType))
             {
                 return DataType.DateTime;
             }
-            else if ("timestamp with time zone".Equals(dbDataType))
+            else if ("datetimeoffset".Equals(dbDataType))
+            {
+                return DataType.DateTime;
+            }
+            else if ("smalldatetime".Equals(dbDataType))
             {
                 return DataType.DateTime;
             }
             else if ("datetime".Equals(dbDataType))
+            {
+                return DataType.DateTime;
+            }
+            else if ("time".Equals(dbDataType))
             {
                 return DataType.DateTime;
             }
@@ -92,7 +129,7 @@ namespace AzureSqlSupplyCollector
                 conn.Open();
 
                 using (var cmd = conn.CreateCommand()) {
-                    cmd.CommandText = $"SELECT {dataEntity.Name} FROM {dataEntity.Collection.Name} LIMIT {sampleSize}";
+                    cmd.CommandText = $"SELECT TOP {sampleSize} {dataEntity.Name} FROM {dataEntity.Collection.Name}";
 
                     using (var reader = cmd.ExecuteReader()) {
                         while (reader.Read()) {
@@ -109,6 +146,72 @@ namespace AzureSqlSupplyCollector
             }
 
             return result;
+        }
+
+        public override List<DataCollectionMetrics> GetDataCollectionMetrics(DataContainer container) {
+            var metrics = new List<DataCollectionMetrics>();
+
+            using (var conn = new SqlConnection(container.ConnectionString))
+            {
+                conn.Open();
+
+                using (var cmd = conn.CreateCommand()) {
+                    cmd.CommandText =
+                        "SELECT \n" +
+                        "t.NAME AS TableName,\n" +
+                        "s.Name AS SchemaName,\n" +
+                        "p.rows AS RowCounts,\n" +
+                        "SUM(a.total_pages) * 8 AS TotalSpaceKB,\n" +
+                        "SUM(a.used_pages) *8 AS UsedSpaceKB,\n" +
+                        "(SUM(a.total_pages) - SUM(a.used_pages)) *8 AS UnusedSpaceKB\n" +
+                        "FROM\n" +
+                        "sys.tables t\n" +
+                        "INNER JOIN\n" +
+                        "sys.indexes i ON t.OBJECT_ID = i.object_id\n" +
+                        "INNER JOIN\n" +
+                        "sys.partitions p ON i.object_id = p.OBJECT_ID AND i.index_id = p.index_id\n" +
+                        "INNER JOIN\n" +
+                        "sys.allocation_units a ON p.partition_id = a.container_id\n" +
+                        "LEFT OUTER JOIN\n" +
+                        "sys.schemas s ON t.schema_id = s.schema_id\n" +
+                        "WHERE\n" +
+                        "t.NAME NOT LIKE 'dt%'\n" +
+                        "AND t.is_ms_shipped = 0\n" +
+                        "AND i.OBJECT_ID > 255\n" +
+                        "GROUP BY\n" +
+                        "t.Name, s.Name, p.Rows\n" +
+                        "ORDER BY \n" +
+                        "t.Name";
+
+                    using (var reader = cmd.ExecuteReader())
+                    {
+                        while (reader.Read())
+                        {
+                            int column = 0;
+
+                            var table = reader.GetString(column++);
+                            var schema = reader.GetString(column++);
+                            var rows = reader.GetInt64(column++);
+                            var totalSizeKb = reader.GetInt64(column++);
+                            var usedSizeKb = reader.GetInt64(column++);
+                            var unusedSizeKb = reader.GetInt64(column++);
+                            
+
+                            metrics.Add(new DataCollectionMetrics()
+                            {
+                                Schema = schema,
+                                Name = table,
+                                RowCount = rows,
+                                TotalSpaceKB = totalSizeKb,
+                                UnUsedSpaceKB = unusedSizeKb,
+                                UsedSpaceKB = usedSizeKb,
+                            });
+                        }
+                    }
+                }
+            }
+
+            return metrics;
         }
 
 
@@ -141,7 +244,7 @@ namespace AzureSqlSupplyCollector
                         "   where kcu.table_schema = c.table_schema and kcu.table_name = c.table_name and kcu.column_name = c.column_name\n" +
                         ") as is_ref\n" +
                         "from information_schema.columns c\n" +
-                        "where c.table_schema not in ('pg_catalog', 'information_schema')\n" +
+                        "where c.table_schema not in ('sys')\n" +
                         "order by table_schema, table_name, ordinal_position";
 
                     DataCollection collection = null;
@@ -156,9 +259,9 @@ namespace AzureSqlSupplyCollector
                             var columnName = reader.GetDbString(column++);
                             var dataType = reader.GetDbString(column++);
                             var columnDef = reader.GetDbString(column++);
-                            var isPrimary = reader.GetInt64(column++) > 0;
-                            var isUnique = reader.GetInt64(column++) > 0;
-                            var isRef = reader.GetInt64(column++) > 0;
+                            var isPrimary = reader.GetInt32(column++) > 0;
+                            var isUnique = reader.GetInt32(column++) > 0;
+                            var isRef = reader.GetInt32(column++) > 0;
 
                             if (collection == null || !collection.Schema.Equals(schema) ||
                                 !collection.Name.Equals(table))

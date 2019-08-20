@@ -6,17 +6,24 @@ using Xunit;
 
 namespace AzureSqlSupplyCollectorTests
 {
-    public class AzureSqlSupplyCollectorTests
+    public class AzureSqlSupplyCollectorTests : IClassFixture<LaunchSettingsFixture>
     {
         private readonly AzureSqlSupplyCollector.AzureSqlSupplyCollector _instance;
         public readonly DataContainer _container;
+        private LaunchSettingsFixture _fixture;
 
-        public AzureSqlSupplyCollectorTests()
+        public AzureSqlSupplyCollectorTests(LaunchSettingsFixture fixture)
         {
+            _fixture = fixture;
             _instance = new AzureSqlSupplyCollector.AzureSqlSupplyCollector();
             _container = new DataContainer()
             {
-                ConnectionString = _instance.BuildConnectionString("awsuser", "AWSu$err123", "dev", "redshift-cluster-1.cp5amaceqv1g.us-east-1.redshift.amazonaws.com", 5439)
+                ConnectionString = _instance.BuildConnectionString(
+                    Environment.GetEnvironmentVariable("AZURE_SQL_USER"),
+                    Environment.GetEnvironmentVariable("AZURE_SQL_PASSWORD"),
+                    Environment.GetEnvironmentVariable("AZURE_SQL_DATABASE"),
+                    Environment.GetEnvironmentVariable("AZURE_SQL_HOST")
+                    )
             };
         }
 
@@ -39,13 +46,13 @@ namespace AzureSqlSupplyCollectorTests
         {
             var metrics = new DataCollectionMetrics[] {
                 new DataCollectionMetrics()
-                    {Name = "test_data_types", RowCount = 1, TotalSpaceKB = 15 * 1024},
+                    {Name = "test_data_types", RowCount = 1, TotalSpaceKB = 144},
                 new DataCollectionMetrics()
-                    {Name = "test_field_names", RowCount = 1, TotalSpaceKB = 10 * 1024},
+                    {Name = "test_field_names", RowCount = 1, TotalSpaceKB = 72},
                 new DataCollectionMetrics()
-                    {Name = "test_index", RowCount = 7, TotalSpaceKB = 5 * 1024},
+                    {Name = "test_index", RowCount = 7, TotalSpaceKB = 144},
                 new DataCollectionMetrics()
-                    {Name = "test_index_ref", RowCount = 2, TotalSpaceKB = 5 * 1024}
+                    {Name = "test_index_ref", RowCount = 2, TotalSpaceKB = 72}
             };
 
             var result = _instance.GetDataCollectionMetrics(_container);
@@ -65,8 +72,8 @@ namespace AzureSqlSupplyCollectorTests
         public void GetTableNamesTest()
         {
             var (tables, elements) = _instance.GetSchema(_container);
-            Assert.Equal(5, tables.Count);
-            Assert.Equal(24, elements.Count);
+            Assert.Equal(4, tables.Count);
+            Assert.Equal(35, elements.Count);
 
             var tableNames = new string[] { "test_data_types", "test_field_names", "test_index", "test_index_ref" };
             foreach (var tableName in tableNames)
@@ -82,22 +89,34 @@ namespace AzureSqlSupplyCollectorTests
             var (tables, elements) = _instance.GetSchema(_container);
 
             var dataTypes = new Dictionary<string, string>() {
-                {"serial_field", "integer"},
-                {"bool_field", "boolean"},
-                {"char_field", "character"},
-                {"varchar_field", "character varying"},
-                {"text_field", "character varying"},
-                {"smallint_field", "smallint"},
-                {"int_field", "integer"},
-                {"float_field", "double precision"},
-                {"real_field", "real"},
+                {"id_field", "int"},
+                {"bigint_field", "bigint"},
                 {"numeric_field", "numeric"},
+                {"bit_field", "bit"},
+                {"smallint_field", "smallint"},
+                {"decimal_field", "decimal"},
+                {"smallmoney_field", "smallmoney"},
+                {"int_field", "int"},
+                {"tinyint_field", "tinyint"},
+                {"money_field", "money"},
+                {"float_field", "float"},
+                {"real_field", "real"},
                 {"date_field", "date"},
-                {"timestamp_field", "timestamp without time zone"},
+                {"datetimeoffset_field", "datetimeoffset"},
+                {"datetime2_field", "datetime2"},
+                {"smalldatetime_field", "smalldatetime"},
+                {"datetime_field", "datetime"},
+                {"time_field", "time"},
+                {"char_field", "char"},
+                {"varchar_field", "varchar"},
+                {"text_field", "text"},
+                {"nchar_field", "nchar"},
+                {"nvarchar_field", "nvarchar"},
+                {"ntext_field", "ntext"}
             };
 
             var columns = elements.Where(x => x.Collection.Name.Equals("test_data_types")).ToArray();
-            Assert.Equal(12, columns.Length);
+            Assert.Equal(24, columns.Length);
 
             foreach (var column in columns)
             {
@@ -111,7 +130,7 @@ namespace AzureSqlSupplyCollectorTests
         {
             var (tables, elements) = _instance.GetSchema(_container);
 
-            var fieldNames = new string[] { "id", "low_case", "upcase", "camelcase", "table", "array", "select" };
+            var fieldNames = new string[] { "id", "low_case", "UPCASE", "CamelCase", "Table", "array", "SELECT" };
 
             var columns = elements.Where(x => x.Collection.Name.Equals("test_field_names")).ToArray();
             Assert.Equal(fieldNames.Length, columns.Length);
@@ -144,7 +163,7 @@ namespace AzureSqlSupplyCollectorTests
 
             foreach (var column in elements)
             {
-                if (column.Name.Equals("id") || column.Name.Equals("name") || column.Name.Equals("index_id") || column.Name.Equals("serial_field"))
+                if (column.Name.Equals("id") || column.Name.Equals("name") || column.Name.Equals("index_id") || column.Name.Equals("id_field"))
                 {
                     continue;
                 }
@@ -159,11 +178,11 @@ namespace AzureSqlSupplyCollectorTests
         [Fact]
         public void CollectSampleTest()
         {
-            var entity = new DataEntity("name", DataType.String, "character varying", _container,
+            var entity = new DataEntity("name", DataType.String, "varchar", _container,
                 new DataCollection(_container, "test_index"));
 
-            var samples = _instance.CollectSample(entity, 5);
-            Assert.Equal(5, samples.Count);
+            var samples = _instance.CollectSample(entity, 7);
+            Assert.Equal(7, samples.Count);
             Assert.Contains("Wednesday", samples);
         }
 
