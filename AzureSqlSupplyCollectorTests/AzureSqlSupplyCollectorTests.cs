@@ -181,7 +181,10 @@ namespace AzureSqlSupplyCollectorTests
             var entity = new DataEntity("name", DataType.String, "varchar", _container,
                 new DataCollection(_container, "test_index"));
 
-            var samples = _instance.CollectSample(entity, 7);
+            var samples = _instance.CollectSample(entity, 2);
+            Assert.Equal(2, samples.Count);
+
+            samples = _instance.CollectSample(entity, 7);
             Assert.Equal(7, samples.Count);
             Assert.Contains("Wednesday", samples);
         }

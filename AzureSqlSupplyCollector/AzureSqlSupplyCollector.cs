@@ -128,8 +128,20 @@ namespace AzureSqlSupplyCollector
             using (var conn = new SqlConnection(dataEntity.Container.ConnectionString)) {
                 conn.Open();
 
+                int rows;
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = $"SELECT COUNT(*) FROM {dataEntity.Collection.Name}";
+                    rows = (int)cmd.ExecuteScalar();
+                }
+
+                int sampleRowsPct = rows == 0 ? 0 : (int)(sampleSize * 100.0 / rows);
+                sampleRowsPct += 10;
+                if (sampleRowsPct > 100)
+                    sampleRowsPct = 100;
+
                 using (var cmd = conn.CreateCommand()) {
-                    cmd.CommandText = $"SELECT TOP {sampleSize} {dataEntity.Name} FROM {dataEntity.Collection.Name}";
+                    cmd.CommandText = $"SELECT TOP {sampleSize} {dataEntity.Name} FROM {dataEntity.Collection.Name} tablesample({sampleRowsPct} percent)";
 
                     using (var reader = cmd.ExecuteReader()) {
                         while (reader.Read()) {
