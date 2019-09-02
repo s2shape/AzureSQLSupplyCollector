@@ -5,6 +5,7 @@ sleep 20
 docker cp AzureSqlSupplyCollectorTests/tests/data.sql sql1:/data.sql
 docker exec sql1 /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "<YourStrong@Passw0rd>" -i /data.sql
 
+mkdir AzureSqlSupplyCollectorTests/Properties
 echo { > AzureSqlSupplyCollectorTests/Properties/launchSettings.json
 echo   \"profiles\": { >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
 echo     \"AzureSqlSupplyCollectorTests\": { >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
