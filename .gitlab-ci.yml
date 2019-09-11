@@ -5,7 +5,7 @@ stages:
   - test
 
 variables:
-  AZURE_SQL_HOST: azureqsql
+  AZURE_SQL_HOST: azuresql
   AZURE_SQL_USER: sa
   AZURE_SQL_DATABASE: TestDb
   AZURE_SQL_PASSWORD: YourStrong@Passw0rd
