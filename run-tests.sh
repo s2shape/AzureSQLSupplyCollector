@@ -5,20 +5,10 @@ sleep 20
 docker cp AzureSqlSupplyCollectorTests/tests/data.sql sql1:/data.sql
 docker exec sql1 /opt/mssql-tools/bin/sqlcmd -S localhost -U SA -P "<YourStrong@Passw0rd>" -i /data.sql
 
-mkdir AzureSqlSupplyCollectorTests/Properties
-echo { > AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo   \"profiles\": { >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo     \"AzureSqlSupplyCollectorTests\": { >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo       \"commandName\": \"Project\", >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo       \"environmentVariables\": { >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo         \"AZURE_SQL_HOST\": \"localhost\", >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo         \"AZURE_SQL_USER\": \"sa\", >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo         \"AZURE_SQL_DATABASE\": \"TestDb\", >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo         \"AZURE_SQL_PASSWORD\": \"\<YourStrong@Passw0rd\>\" >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo       } >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo     } >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo   } >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
-echo } >> AzureSqlSupplyCollectorTests/Properties/launchSettings.json
+export AZURE_SQL_HOST=localhost
+export AZURE_SQL_USER=sa
+export AZURE_SQL_DATABASE=TestDb
+export AZURE_SQL_PASSWORD=YourStrong@Passw0rd
 
 dotnet build
 dotnet test
