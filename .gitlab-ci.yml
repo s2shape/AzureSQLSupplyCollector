@@ -1,4 +1,4 @@
-image: itsplus/s2shape-test-harness
+image: s2shape/s2shape-test-harness:latest
 
 stages:
   - build
@@ -29,8 +29,8 @@ test:
   script:
     - ROOT_PROJECT_PATH=$(pwd)
     - dotnet build
-    - dotnet publish
-    - cd $ROOT_PROJECT_PATH/AzureSqlSupplyCollectorLoader/bin/Debug/netcoreapp2.2/publish
+    - dotnet publish -r linux-x64
+    - cd $ROOT_PROJECT_PATH/AzureSqlSupplyCollectorLoader/bin/Debug/netcoreapp2.2/linux-x64/publish
     - cp -f /SupplyCollectorDataLoader/SupplyCollectorDataLoader/bin/Debug/netcoreapp2.2/SupplyCollectorDataLoader.runtimeconfig.json .
     - dotnet SupplyCollectorDataLoader.dll -init AzureSqlSupplyCollector "$AZURE_SQL_HOST;User ID=$AZURE_SQL_USER;Password=$AZURE_SQL_PASSWORD"
     - dotnet SupplyCollectorDataLoader.dll -xunit AzureSqlSupplyCollector "$AZURE_SQL_HOST;Initial Catalog=$AZURE_SQL_DATABASE;User ID=$AZURE_SQL_USER;Password=$AZURE_SQL_PASSWORD"
