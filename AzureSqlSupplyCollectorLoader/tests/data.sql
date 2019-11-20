@@ -1,7 +1,4 @@
 --- Test data
-create database TestDb;
-go
-
 use TestDb;
 go
 
@@ -84,4 +81,7 @@ insert into test_index_ref(index_id)
 values(1);
 insert into test_index_ref(index_id)
 values(5);
+go
+
+COMMIT;
 go

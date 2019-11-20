@@ -12,11 +12,16 @@ namespace AzureSqlSupplyCollectorLoader
             using (var conn = new SqlConnection(dataContainer.ConnectionString)) {
                 conn.Open();
 
-                //create database TestDb;
-                //go
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandTimeout = 600;
+                    cmd.CommandText = "create database TestDb";
 
+                    cmd.ExecuteNonQuery();
+                }
             }
         }
+
         public override void LoadSamples(DataEntity[] dataEntities, long count) {
             using (var conn = new SqlConnection(dataEntities[0].Container.ConnectionString)) {
                 conn.Open();
@@ -163,6 +168,7 @@ namespace AzureSqlSupplyCollectorLoader
 
                         sb.AppendLine(line);
                         if (line.TrimEnd().EndsWith(";")) {
+                            Console.WriteLine(sb.ToString());
                             using (var cmd = conn.CreateCommand()) {
                                 cmd.CommandTimeout = 600;
                                 cmd.CommandText = sb.ToString();
